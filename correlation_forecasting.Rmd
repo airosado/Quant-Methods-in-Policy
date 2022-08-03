@@ -1,0 +1,249 @@
+---
+title: "PBPL 26400 - Assignment 2"
+author: "Avery Rosado"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())
+
+# Load Packages 
+library("knitr")
+library("magrittr")
+library("dplyr")
+library("ggplot2")
+
+# Set Working Directory
+opts_knit$set(root.dir = "~/Desktop/CLASSES/PBPL264/Correlation-for-Predicting-Forecasting/") # The place where your data is stored 
+
+# Set global options for all code chunks
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load data, include=FALSE}
+data <- read.csv("~/Desktop/CLASSES/Third\ Year/Q2/PBPL264/Correlation-for-Predicting-Forecasting/SchoolingEarnings.csv")
+```
+
+
+## Question 5.1
+Run a regression with earnings as the dependent variable and schooling
+as the sole independent variable. Interpret the coefficients.
+
+The intercept of the model is 8.799; this is positive and above 0. This means that, even for 0 schooling, there are earnings one can expect to achieve. Meanwhile, the slop of the graph (under 'schooling') is also positive, meaning there there is a positive relationship between amount of schooling and outcome in earnings. As schooling increases, so too will earnings. 
+
+```{r}
+#WRITE YOUR CODE HERE
+# Earnings dependent (y), schooling independent (x)
+regress <- lm(data = data, earnings ~ schooling)
+print(regress)
+```
+
+\pagebreak
+## Question 5.2
+Suppose you wanted a parsimonious way to predict earnings using only years
+of schooling. What would you do?
+
+In order to achieve a parsimonious way to predict earnings using only years of schooling (the independent variable), a regression of some sort can be run in order to fit the data. This will allow for all values over some domain of the independent variable to be effectively predicted by obtaining the equation for the regression using existing data. 
+
+```{r}
+#WRITE YOUR CODE HERE
+# METHOD 1
+coefmat <- matrix(regress$coefficients)
+predfunc <- function(schooling){
+  predict <- coefmat[1,1] + (coefmat[2,1])*schooling
+  return(predict)
+}
+# implement predfunc function: input amount of schooling
+print(paste(round(predfunc(10), 4), "schooling"))
+print("This value is rounded to several decimal places.")
+```
+
+\pagebreak
+## Question 5.3
+Let’s dig more deeply into whether the relationship between earnings and
+schooling is approximately linear
+
+### (a) 
+Start by making a scatter plot. Then plot the predicted values from
+your regression along with the raw data points, as we did in chapter 2. 
+Does the regression line look like it’s fitting the data well?
+
+The regression  very roughly fits the data. It captures the positive relationship between the independent and dependent variables and even intersects with several data points. However, it does not very accurately capture the non-linear components of the graph, which are significt for predicting values of earnings for existing and, especially, non-existing data. 
+
+```{r}
+#WRITE YOUR CODE HERE
+data_raw <- ggplot(data=data, aes(x=schooling,y=earnings)) + 
+  geom_point() + 
+  labs(title = "Observed Earnings over amount of Schooling", x = "Schooling", y = "Earnings (thousands $)") + 
+  theme_light() + 
+  theme(text=element_text(size = 12)) 
+data_raw
+data_regress <- ggplot(data=data, aes(x=schooling,y=earnings)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Observed Earnings over amount of Schooling", x = "Schooling", y = "Earnings (thousands $)") +
+  theme_light() +
+  theme(text=element_text(size = 12))
+data_regress
+```
+
+### (b) 
+Now run a fourth-order polynomial regression (i.e., include schooling,
+schooling2, schooling3, and schooling4. Do those predictions meaningfully
+differ from the predictions coming from the linear regression?
+
+These predictions do meaningfully differ from the predictions coming from the linear regression. While the positive relationship is still depicted, this regression analysis picks up on the subtle curvature exhibited across the data; the relationship between variables is not consistent enough to necessarily be described as linear and this model does a more comprehensive job of demonstrating this. 
+
+```{r}
+#WRITE YOUR CODE HERE
+data_polyr <- ggplot(data=data, aes(x=schooling,y=earnings)) +
+  geom_point() +
+  stat_smooth(method="lm",se=TRUE,fill=NA, formula=y ~ poly(x, 4, raw=TRUE), colour="red") +
+  labs(title = "Observed Earnings over amount of Schooling", x = "Schooling", y = "Earnings") +
+  theme_light() +
+  theme(text=element_text(size = 12))
+data_polyr
+```
+
+### (c) 
+Now run different regressions for some different ranges of schooling.
+Do those lines look meaningfully different from the predictions you get
+from a single regression including all the data?
+
+Over a refined range, these values do look substantially different from a single regresssion including all the data. For the refined linear graphs, the relationship is not too significantly impacted; the data is fit somewhat better and there appears to be less variation and a more accurate prediction is provided. For the polynomial regression, the data is more closely fitted. There is more curvature in the polynomial regression over this smaller range of data and more inflection, reflecting the smaller fluctuations in the rate of rise of earnings as schooling increases; that being said, it holds true that, overall, a positive relatiionship is exhibited. The rate of positivity is demonstrated to fluctuate for these smaller ranges. 
+
+```{r}
+#WRITE YOUR CODE HERE
+# for data in range 1:20
+# EDIT
+value_to_split_at <- 20 # EDIT TO MANIPULATE RANGE
+earningsdata <- data$earnings
+model1data <- subset(data, data$earnings<value_to_split_at)
+model2data <- subset(data, data$earnings>=value_to_split_at)
+model1_linear <- ggplot(data=model1data, aes(x=schooling,y=earnings)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Observed Earnings over amount of Schooling", x = "Schooling", y = "Earnings") +
+  theme_light() +
+  theme(text=element_text(size = 12))
+model1_poly <- ggplot(data=model1data, aes(x=schooling,y=earnings)) +
+  geom_point() +
+  stat_smooth(method="lm",se=TRUE,fill=NA, formula=y ~ poly(x, 4, raw=TRUE), colour="red") +
+  labs(title = "Observed Earnings over amount of Schooling", x = "Schooling", y = "Earnings") +
+  theme_light() +
+  theme(text=element_text(size = 12))
+model2_linear <- ggplot(data=model2data, aes(x=schooling,y=earnings)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Observed Earnings over amount of Schooling", x = "Schooling", y = "Earnings") +
+  theme_light() +
+  theme(text=element_text(size = 12))
+model2_poly <- ggplot(data=model2data, aes(x=schooling,y=earnings)) +
+  geom_point() +
+  stat_smooth(method="lm",se=TRUE,fill=NA, formula=y ~ poly(x, 4, raw=TRUE), colour="red") +
+  labs(title = "Observed Earnings over amount of Schooling", x = "Schooling", y = "Earnings") +
+  theme_light() +
+  theme(text=element_text(size = 12))
+# PRINT
+model1_linear
+model1_poly
+model2_linear
+model2_poly
+
+```
+```{r}
+group1 <- subset(data,data$schooling<10)
+group2 <- subset(data,data$schooling<20)
+group3 <- subset(data,data$schooling<30)
+testing <- subset(data,data$schooling<40)
+regression1 <- lm(earnings ~ schooling, data = group1)
+regression2 <- lm(earnings ~ schooling, data = group2)
+regression3 <- lm(earnings ~ schooling, data = group3)
+prediction <- predict(regression3, testing)
+prediction
+```
+
+
+### (d)
+Does all this make you think the simple linear approach was reasonable
+or unreasonable?
+
+The simple linear approach may not have been entirely unreasonable, as it did a decent job of making clear the most generic information about the system between schooling and earnings (ie. the positive relationship between these two variables). That being said, the polynomial regression does a much better jobh at predicting values of earnings for schooling than the linear model, and should be trusted to produce more accurate predictions. 
+ 
+ 
+ 
+\pagebreak
+## Question 5.4 
+Similar to what we did with age and voter turnout, conduct some out-ofsample
+tests to evaluate your prediction strategy. Using only data for those
+with twelve years of schooling or less, see how well your different strategies
+from question 3 perform when predicting earnings for those with more than
+twelve years of schooling.
+ 
+For lr, the results are not as good. They are ok over a certain set of data but not over the entirety
+ For pr, the results are more closely fit. 
+ For closer ranges, the regressions are most accurate.
+
+```{r}
+#WRITE YOUR CODE HERE
+modeldata <- subset(data, data$schooling<=12)
+nonincluded <- subset(data,data$schooling>12)
+#modeldata <- subset(data, data$earnings<=12)
+linear <- ggplot(data=modeldata, aes(x=schooling,y=earnings)) +
+  geom_point() +
+  xlim(0,20) +
+  geom_point(data=nonincluded, aes(x=schooling,y=earnings), shape=1) +
+  geom_smooth(method = "lm", se = FALSE, fullrange=TRUE) +
+  labs(title = "Observed Earnings over amount of Schooling", x = "Schooling", y = "Earnings") +
+  theme_light() +
+  theme(text=element_text(size = 12))
+linear
+polynomial <- ggplot(data=modeldata, aes(x=schooling,y=earnings)) +
+  geom_point() +
+  geom_point(data=nonincluded, aes(x=schooling,y=earnings), shape=1) +
+  xlim(0,20) +
+  ylim(0,45) +
+  stat_smooth(method="lm",se=TRUE,fill=NA, formula=y ~ poly(x, 4, raw=TRUE), colour="red", fullrange=TRUE) +
+  labs(title = "Observed Earnings over amount of Schooling", x = "Schooling", y = "Earnings") +
+  theme_light() +
+  theme(text=element_text(size = 12))
+polynomial
+
+```
+
+
+
+
+\pagebreak
+## Question 5.5
+Drop one observation, run a regression to try to predict the outcome for that 
+missing observation, and see how far you were. Repeat this for each observation
+in the data set (you should be able to do this with a loop) and average your errors.
+Try different strategies to see which one gives you the best out-of-sample predictions.
+
+We see convergence on 0, which is what we expect.
+
+```{r}
+error1 <- 1:21
+for(i in 1:21){
+  refined_vals_list <- data[-i,] %>% data.frame()
+  excluded <- data[i,] %>% data.frame()
+  lr <- lm(earnings ~ schooling, data = refined_vals_list)
+  error1[i] <- predict(lr, excluded) - excluded$earnings
+  #
+  leave_one_out_plot <- ggplot(data=refined_vals_list, aes(x=schooling,y=earnings)) +
+    geom_point() +
+    geom_point(data=excluded, aes(x=schooling,y=earnings), shape = 1) +
+    xlim(0,20) +
+    ylim(0,40) +
+    geom_smooth(method = "lm", se = FALSE, fullrange=TRUE) +
+    labs(title = "Observed Earnings over amount of Schooling", x = "Schooling", y = "Earnings") +
+    theme_light() +
+    theme(text=element_text(size = 12))
+  print(leave_one_out_plot)
+}
+print(paste(mean(error1), "is the average error for lr over 21 data points"))
+```

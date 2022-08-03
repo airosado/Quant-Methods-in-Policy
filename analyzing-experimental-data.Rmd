@@ -1,0 +1,175 @@
+---
+title: 'PBPL 264, ASST 3: Analyzing Experimental Data'
+author: "Avery Rosado"
+date: "2/20/2022"
+output:
+  word_document:
+    toc: yes
+  html_document:
+    theme: cosmo
+    toc: yes
+---
+
+```{R}
+rm(list=ls())
+expdata <- read.csv('~/Desktop/CLASSES/PBPL264/analyzing_exp_data/GOTV_Experiment.csv')
+```
+
+## 11.2 a
+**Calculate the mean value of turnout for people who did and did not receive the treatment, and interpret the implied effect of GOTV interventions on turnout. Think about the likely biases that arise from the three complications listed above. If you had to guess, would you say that you are likely over or under-estimating the average effect with this analysis? Explain your answer.**
+
+```{R}
+# Ex. mean(data$graduate[data$treated == 1], na.rm=T)
+# treatment
+mean_turnout_treated <- mean(expdata$turnout[expdata$successfultreatment == 1], na.rm=T)
+print(mean_turnout_treated)
+
+# NO treatment
+mean_turnout_untreated <- mean(expdata$turnout[expdata$successfultreatment == 0], na.rm=T)
+print(mean_turnout_untreated)
+# -----------------------------
+print(paste(round(mean_turnout_treated,4)*100, "% of people who did receive treatment turned out."))
+print(paste(round(mean_turnout_untreated,4)*100, "% of people who did not receive treatment turned out."))
+```
+```{R}
+round(mean_turnout_treated,4)-round(mean_turnout_untreated,4)
+```
+
+## 11.2 b
+
+```{R}
+# Urban Cohort
+# URBAN
+lr_urban <- lm(turnout ~ treatmentattempt, data=expdata, urban == 1) # no treatment
+lr_urban_t <- lm(turnout ~ successfultreatment, data=expdata, urban == 1) # treatment                                                     
+# Non-urban (suburban, rural) Cohort
+# NONURBAN
+lr_non_urban <- lm(turnout ~ treatmentattempt, data=expdata, urban == 0) # no treatment
+lr_non_urban_t <- lm(turnout ~ successfultreatment, data=expdata, urban == 0) # treatment
+
+# COMBO REGRESSION
+#lr_combo <- lm(turnout ~ 1 + urban:treatmentattempt + c(1-urban):treatmentattempt + c(1-urban), data = expdata)
+# -----------------------------
+cat("Urban Cohort, Untreated\n")
+coef(lr_urban)
+cat("Urban Cohort, Treated\n")
+coef(lr_urban_t)
+cat("Non-Urban Cohort, Untreated\n")
+coef(lr_non_urban)
+cat("Non-Urban Cohort, Treated\n")
+coef(lr_non_urban_t)
+```
+
+## 11.2 c
+
+```{R}
+# Intent-to-treat effect (reduced form)
+# URBAN
+reduced_form <- lm(turnout ~ treatmentattempt, data=expdata, expdata$urban == 1)
+cat("INTENT-TO-TREAT URBAN (REDUCED FORM)\n")
+coef(reduced_form)
+itt_effect_urban <- 0.04104669
+# NON-URBAN
+reduced_form <- lm(turnout ~ treatmentattempt, data=expdata, expdata$urban == 0)
+cat("INTENT-TO-TREAT NON-URBAN (REDUCED FORM)\n")
+coef(reduced_form)
+itt_effect_nonurban <- 0.03274022
+
+cat("-------------------------------------------------------\n")
+cat("\n")
+# Compliance Rate (first stage)
+# URBAN
+cat("COMPLIANCE RATE URBAN (FIRST STAGE)")
+cr_urban <- lm(successfultreatment ~ treatmentattempt, data=expdata, expdata$urban == 1)
+summary(cr_urban)
+compliance_rate_urban <- 7.488e-01
+
+# NON-URBAN
+cat("COMPLIANCE RATE NON-URBAN (FIRST STAGE)")
+cr_nonurban <- lm(successfultreatment ~ treatmentattempt, data=expdata, expdata$urban == 0)
+summary(cr_nonurban)
+compliance_rate_nonurban <- 7.739e-01
+
+#cat("-------------------------------------------------------\n")
+cat("\n")
+# Complier Average Treatment Effect
+cate_urban <- itt_effect_urban/compliance_rate_urban
+cate_nonurban <- itt_effect_nonurban/compliance_rate_nonurban
+
+cat("-------------------------------------------------------\n")
+cat("\n")
+
+cat("Overview and Complier Average Treatment Effect URBAN\n")
+print(paste(round(itt_effect_urban,4), "is the intent-to-treat effect (reduced form) for urban cohort"))
+print(paste(compliance_rate_urban, "is the compliance rate (first stage) for urban cohort"))
+print(paste(round(cate_urban,4), "is the complier average treatment effect (CATE) for urban cohort"))
+
+cat("\n")
+
+cat("Overview and Complier Average Treatment Effect NON-URBAN\n")
+print(paste(round(itt_effect_nonurban,4), "is the intent-to-treat effect (reduced form)"))
+print(paste(compliance_rate_nonurban, "is the compliance rate (first stage"))
+print(paste(round(cate_nonurban,4), "is the complier average treatment effect (CATE)"))
+```
+
+## 11.2 d
+
+```{R}
+### Estimate the CATE asssuming that none of the subjects who attrited would have voted ###
+expdata$turnout <- as.numeric(expdata$turnout)
+# cat("-------------------------------------------------------\n")
+# URBAN
+expdata$turnout_case2 <- expdata$turnout
+expdata$turnout_case2urban <- expdata$turnout & expdata$urban == 1
+# Replace NAs with 1 for 'did turnout'
+# IF they were assigned to treatment
+expdata$turnout_case2urban[is.na(expdata$turnout_case2urban)] <- 0
+lr <- lm(turnout_case2urban ~ treatmentattempt, data=expdata, urban == 1)
+coef(lr)
+urban_incentive <- round(0.04088596,4)
+# CALC
+cate2_urban <- urban_incentive/compliance_rate_urban
+print(paste(round(cate2_urban,4), "is the CATE for urban cohort, given the assumption"))
+cat("-------------------------------------------------------\n")
+# NONURBAN
+expdata$turnout_case2 <- expdata$turnout
+expdata$turnout_case2nonurban <- expdata$turnout & expdata$urban == 0
+# Replace NAs with 1 for 'did turnout'
+# IF they were assigned to treatment
+expdata$turnout_case2nonurban[is.na(expdata$turnout_case2nonurban)] <- 0 
+lr <- lm(turnout_case2nonurban ~ treatmentattempt, data=expdata, urban == 0)
+coef(lr)
+nonurban_incentive <- round(0.03295978,4)
+# CALC
+cate2_nonurban <- nonurban_incentive/compliance_rate_nonurban
+print(paste(round(cate2_nonurban,4), "is the CATE for non-urban cohort, given the assumption"))
+
+
+
+# BEST
+# Urban
+expdata$turnout_case2urban <- expdata$turnout & expdata$urban == 1
+expdata$turnout_case2urban <- ifelse(is.na(expdata$turnout_case2urban), expdata$treatmentattempt,expdata$turnout)
+lm(expdata$turnout_case2urban ~ treatmentattempt, data=expdata, urban ==1)
+print(paste(0.04648/compliance_rate_urban))
+
+#Non-Urban
+expdata$turnout_case2nonurban <- expdata$turnout & expdata$urban == 0
+expdata$turnout_case2nonurban <- ifelse(is.na(expdata$turnout_case2nonurban), expdata$treatmentattempt,expdata$turnout)
+lm(expdata$turnout_case2nonurban ~ treatmentattempt, data=expdata, urban ==0)
+print(paste(0.03744/compliance_rate_nonurban))
+# WORST
+# Urban
+expdata$turnout_case2urban <- expdata$turnout & expdata$urban == 1
+expdata$turnout_case2urban <- ifelse(is.na(expdata$turnout_case2urban), 1 - expdata$treatmentattempt, 1 - expdata$turnout)
+lm(expdata$turnout_case2urban ~ treatmentattempt, data=expdata, urban ==1)
+print(paste(-0.04648/compliance_rate_urban))
+
+# Non-Urban
+expdata$turnout_case2nonurban <- expdata$turnout & expdata$urban == 0
+expdata$turnout_case2nonurban <- ifelse(is.na(expdata$turnout_case2nonurban), 1 - expdata$treatmentattempt, 1 - expdata$turnout)
+lm(expdata$turnout_case2nonurban ~ treatmentattempt, data=expdata, urban ==0)
+print(paste(-0.03744/compliance_rate_nonurban))
+
+
+```
